@@ -1,10 +1,20 @@
-# DOGMA_PI5
-Dưới đây là bản README.md rõ ràng, đầy đủ theo đúng yêu cầu bạn, tập trung vào:
+# DOGMA_PI5 - Hướng dẫn chi tiết
 
-* Mở cổng và tắt tường lửa trên Pi
-* Cách chạy script `.sh` cài đặt và build file `.c`
-* Cách đọc log để debug lỗi
-* Cách cấu hình OBS (Windows) và Pi (Raspberry Pi 4 trở lên) để stream qua giao thức SRT
+Dự án phát video 2 luồng SRT nhận từ OBS qua Tailscale, xuất ra 2 màn hình HDMI trên Raspberry Pi 4/5.
+
+## 1. Chuẩn bị môi trường
+
+### 1.1. Cài đặt Tailscale
+
+```bash
+curl -fsSL https://tailscale.com/install.sh | sh
+tailscale up
+```
+
+Ghi lại IP Tailscale của Pi (sẽ cần để cấu hình):
+```bash
+tailscale ip -4
+```
 
 ---
 
@@ -75,8 +85,7 @@ sudo reboot
 Sau khi Pi đã khởi động lại và vào lại thư mục dự án:
 
 ```bash
-gcc DOGMA_pi_caller_obs_listener.c -o dual_srt_display \
-  -lavformat -lavcodec -lavutil -lswscale -lsdl2 -pthread
+gcc DOGMA_pi_caller_obs_listener2.c -o DOGMA_pi_caller_obs_listener2 $(pkg-config --cflags --libs libavformat libavcodec libavutil libswscale sdl2) -lpthread
 ```
 
 ### 2.3. Chạy chương trình
@@ -196,3 +205,87 @@ Bạn thấy bản README này có rõ ràng và đầy đủ chưa?
 Mình có thể giúp bạn viết thêm file `systemd service` hoặc script deploy nữa nếu muốn!
 ```
 
+gcc DOGMA_pi_caller_obs_listener2.c -o DOGMA_pi_caller_obs_listener2 $(pkg-config --cflags --libs libavformat libavcodec libavutil libswscale sdl2) -lpthread
+
+
+
+Dễ thôi! Để tự chạy chương trình của bạn dưới dạng service (ví dụ dùng **systemd** trên Linux), bạn cần tạo một file service `.service` để quản lý chương trình.
+
+---
+
+SERVICE
+
+## Hướng dẫn tạo file systemd service cho chương trình của bạn
+
+### 1. Biên dịch chương trình thành file thực thi (giả sử bạn đã làm rồi):
+
+```bash
+gcc DOGMA_pi_caller_obs_listener2.c -o dogma_stream \
+$(pkg-config --cflags --libs libavformat libavcodec libavutil libswscale sdl2) -lpthread
+```
+
+### 2. Tạo file service
+
+Mở file mới với quyền root:
+
+```bash
+sudo nano /etc/systemd/system/dogma_stream.service
+```
+
+### 3. Nội dung ví dụ cho file `dogma_stream.service`:
+
+```ini
+[Unit]
+Description=DOGMA Dual HDMI Stream Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/full/path/to/dogma_stream
+Restart=on-failure
+User=pi
+WorkingDirectory=/full/path/to/working/directory
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+```
+
+* Thay `/full/path/to/dogma_stream` thành đường dẫn tuyệt đối tới file thực thi của bạn, ví dụ `/home/pi/Documents/DOGMA/dogma_stream`.
+* Thay `/full/path/to/working/directory` thành thư mục chứa chương trình (nơi file .c hoặc các file liên quan nằm).
+* `User=pi` là user để chạy service, thay nếu bạn muốn.
+
+---
+
+### 4. Reload systemd và bật service tự động:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable dogma_stream.service
+sudo systemctl start dogma_stream.service
+```
+
+### 5. Kiểm tra trạng thái service:
+
+```bash
+sudo systemctl status dogma_stream.service
+```
+
+### 6. Xem log:
+
+```bash
+journalctl -u dogma_stream.service -f
+```
+
+---
+
+## Tóm tắt:
+
+* File service giúp tự động chạy chương trình khi khởi động máy.
+* `Restart=on-failure` tự động chạy lại nếu chương trình bị lỗi.
+* Log chương trình sẽ được gửi vào `journalctl`.
+
+---
+
+Nếu bạn muốn, tôi có thể tạo sẵn file service mẫu đúng với đường dẫn của bạn, hoặc hướng dẫn thêm cách tạo script `install.sh` để dễ thiết lập nhé?
