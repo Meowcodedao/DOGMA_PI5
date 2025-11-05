@@ -7,6 +7,7 @@
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
 #include <libswscale/swscale.h>
+#include <libavutil/imgutils.h>
 #include <SDL2/SDL.h>
 
 #define LOGFILE "/var/log/dogma_stream.log"
@@ -68,7 +69,7 @@ void *receiver_thread(void *arg) {
 
     AVFormatContext *fmt_ctx = NULL;
     AVCodecContext *dec_ctx = NULL;
-    AVCodec *dec = NULL;
+    const AVCodec *dec = NULL;
     struct SwsContext *sws_ctx = NULL;
     AVPacket pkt;
     AVFrame *frame = NULL, *frame_yuv = NULL;
@@ -107,39 +108,39 @@ void *receiver_thread(void *arg) {
     SDL_Rect display_bounds;
     SDL_GetDisplayBounds(display_index, &display_bounds);
     window = SDL_CreateWindow(url, display_bounds.x, display_bounds.y,
-                              display_bounds.w, display_bounds.h,
-                              SDL_WINDOW_FULLSCREEN);
+                            display_bounds.w, display_bounds.h,
+                            SDL_WINDOW_FULLSCREEN);
 
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     texture = SDL_CreateTexture(renderer,
-                                SDL_PIXELFORMAT_YV12,
-                                SDL_TEXTUREACCESS_STREAMING,
-                                dec_ctx->width,
-                                dec_ctx->height);
+                              SDL_PIXELFORMAT_YV12,
+                              SDL_TEXTUREACCESS_STREAMING,
+                              dec_ctx->width,
+                              dec_ctx->height);
 
     frame = av_frame_alloc();
     frame_yuv = av_frame_alloc();
 
     int num_bytes = av_image_get_buffer_size(AV_PIX_FMT_YUV420P, dec_ctx->width,
-                                             dec_ctx->height, 1);
+                                           dec_ctx->height, 1);
     buffer = (uint8_t*)av_malloc(num_bytes * sizeof(uint8_t));
     av_image_fill_arrays(frame_yuv->data, frame_yuv->linesize, buffer,
-                         AV_PIX_FMT_YUV420P, dec_ctx->width, dec_ctx->height, 1);
+                       AV_PIX_FMT_YUV420P, dec_ctx->width, dec_ctx->height, 1);
 
     sws_ctx = sws_getContext(dec_ctx->width, dec_ctx->height, dec_ctx->pix_fmt,
-                             dec_ctx->width, dec_ctx->height, AV_PIX_FMT_YUV420P,
-                             SWS_BILINEAR, NULL, NULL, NULL);
+                           dec_ctx->width, dec_ctx->height, AV_PIX_FMT_YUV420P,
+                           SWS_BILINEAR, NULL, NULL, NULL);
 
     while (av_read_frame(fmt_ctx, &pkt) >= 0) {
         if (pkt.stream_index == video_stream_index) {
             avcodec_send_packet(dec_ctx, &pkt);
             while (avcodec_receive_frame(dec_ctx, frame) == 0) {
                 sws_scale(sws_ctx, (const uint8_t *const *)frame->data, frame->linesize,
-                          0, dec_ctx->height, frame_yuv->data, frame_yuv->linesize);
+                        0, dec_ctx->height, frame_yuv->data, frame_yuv->linesize);
                 SDL_UpdateYUVTexture(texture, NULL,
-                                     frame_yuv->data[0], frame_yuv->linesize[0],
-                                     frame_yuv->data[1], frame_yuv->linesize[1],
-                                     frame_yuv->data[2], frame_yuv->linesize[2]);
+                                   frame_yuv->data[0], frame_yuv->linesize[0],
+                                   frame_yuv->data[1], frame_yuv->linesize[1],
+                                   frame_yuv->data[2], frame_yuv->linesize[2]);
 
                 SDL_RenderClear(renderer);
                 SDL_RenderCopy(renderer, texture, NULL, NULL);
@@ -188,4 +189,3 @@ int main() {
     log_msg("Program finished.");
     return 0;
 }
-
