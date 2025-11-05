@@ -187,105 +187,73 @@ gpu_mem=256
 
 để bật HDMI và cấp đủ RAM GPU cho video playback.
 
----
 
-## 6. Hỗ trợ và liên hệ
-
-Nếu gặp vấn đề hoặc cần hỗ trợ thêm, vui lòng mở issue trên repo GitHub hoặc liên hệ trực tiếp.
-
----
-
-**Chúc bạn thành công với dự án DOGMA_PI5!** 🚀
-
-```
-
----
-
-Bạn thấy bản README này có rõ ràng và đầy đủ chưa?  
-Mình có thể giúp bạn viết thêm file `systemd service` hoặc script deploy nữa nếu muốn!
 ```
 
 gcc DOGMA_pi_caller_obs_listener2.c -o DOGMA_pi_caller_obs_listener2 $(pkg-config --cflags --libs libavformat libavcodec libavutil libswscale sdl2) -lpthread
 
 
-
-Dễ thôi! Để tự chạy chương trình của bạn dưới dạng service (ví dụ dùng **systemd** trên Linux), bạn cần tạo một file service `.service` để quản lý chương trình.
-
----
-
 SERVICE
 
-## Hướng dẫn tạo file systemd service cho chương trình của bạn
 
-### 1. Biên dịch chương trình thành file thực thi (giả sử bạn đã làm rồi):
+File /etc/systemd/system/dogma_stream.service
 
-```bash
-gcc DOGMA_pi_caller_obs_listener2.c -o dogma_stream \
-$(pkg-config --cflags --libs libavformat libavcodec libavutil libswscale sdl2) -lpthread
-```
-
-### 2. Tạo file service
-
-Mở file mới với quyền root:
-
-```bash
-sudo nano /etc/systemd/system/dogma_stream.service
-```
-
-### 3. Nội dung ví dụ cho file `dogma_stream.service`:
-
-```ini
 [Unit]
 Description=DOGMA Dual HDMI Stream Service
 After=network.target
 
 [Service]
 Type=simple
-ExecStart=/full/path/to/dogma_stream
+ExecStart=/home/danivan/Documents/DOGMA/dogma_stream
 Restart=on-failure
-User=pi
-WorkingDirectory=/full/path/to/working/directory
+User=danivan
+WorkingDirectory=/home/danivan/Documents/DOGMA
 StandardOutput=journal
 StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
-```
-
-* Thay `/full/path/to/dogma_stream` thành đường dẫn tuyệt đối tới file thực thi của bạn, ví dụ `/home/pi/Documents/DOGMA/dogma_stream`.
-* Thay `/full/path/to/working/directory` thành thư mục chứa chương trình (nơi file .c hoặc các file liên quan nằm).
-* `User=pi` là user để chạy service, thay nếu bạn muốn.
 
 ---
 
-### 4. Reload systemd và bật service tự động:
+### Hướng dẫn cài đặt nhanh:
+
+1. Tạo file service:
+
+```bash
+sudo nano /etc/systemd/system/dogma_stream.service
+```
+
+2. Dán nội dung trên vào rồi lưu lại.
+
+3. Tải lại systemd config:
 
 ```bash
 sudo systemctl daemon-reload
+```
+
+4. Bật service tự khởi động cùng máy:
+
+```bash
 sudo systemctl enable dogma_stream.service
+```
+
+5. Khởi động service ngay:
+
+```bash
 sudo systemctl start dogma_stream.service
 ```
 
-### 5. Kiểm tra trạng thái service:
+6. Kiểm tra trạng thái service:
 
 ```bash
 sudo systemctl status dogma_stream.service
 ```
 
-### 6. Xem log:
+7. Xem log realtime:
 
 ```bash
 journalctl -u dogma_stream.service -f
 ```
 
 ---
-
-## Tóm tắt:
-
-* File service giúp tự động chạy chương trình khi khởi động máy.
-* `Restart=on-failure` tự động chạy lại nếu chương trình bị lỗi.
-* Log chương trình sẽ được gửi vào `journalctl`.
-
----
-
-Nếu bạn muốn, tôi có thể tạo sẵn file service mẫu đúng với đường dẫn của bạn, hoặc hướng dẫn thêm cách tạo script `install.sh` để dễ thiết lập nhé?
